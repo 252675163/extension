@@ -63,23 +63,23 @@ export class Xb1TreeDataProvider
     const root= new SymbolNode();
     const tree = new SymbolNode();
     tree.parent=root;
-    tree.info.label="'xb1Extension.js' is not found"
-    root.children.push(tree)
-    this.tree = root
+    tree.info.label="'xb1Extension.js' is not found";
+    root.children.push(tree);
+    this.tree = root;
 
   }
   private mixNode(parentNode:SymbolNode,mix:SymbolNode,onode:ONode,symbolNodeArr:vscode.SymbolInformation[]):void{
     if(parentNode){
-      mix.parent=parentNode
-      parentNode.children.push(mix)
+      mix.parent=parentNode;
+      parentNode.children.push(mix);
     }
-    mix.info=onode
-    mix.symbol=symbolNodeArr.find(i=>i.name===onode.pk)
+    mix.info=onode;
+    mix.symbol=symbolNodeArr.find(i=>i.name===onode.pk);
     if(onode.children.length>0){
       onode.children.forEach((item)=>{
-        let newNode = new SymbolNode()
-        this.mixNode(mix,newNode,item,symbolNodeArr)
-      })
+        let newNode = new SymbolNode();
+        this.mixNode(mix,newNode,item,symbolNodeArr);
+      });
     }
   }
   async getChildren(node?: SymbolNode): Promise<SymbolNode[]> {
@@ -98,7 +98,7 @@ export class Xb1TreeDataProvider
   getTreeItem(node: SymbolNode): SymbolNode {
     let treeItem = node;
     if (node.children.length) {
-      treeItem.collapsibleState =vscode.TreeItemCollapsibleState.Expanded
+      treeItem.collapsibleState =vscode.TreeItemCollapsibleState.Expanded;
     } else {
       treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
     }
