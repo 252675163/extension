@@ -55,7 +55,6 @@
 		"vscode:prepublish": "yarn run compile",
 		"compile": "tsc -p ./",
 		"watch": "tsc -watch -p ./",
-		"postinstall": "node ./node_modules/vscode/bin/install",
 		"test": "yarn run compile && node ./node_modules/vscode/bin/test"
 	},
 	"devDependencies": {
@@ -67,6 +66,7 @@
 	},
 	"dependencies": {
 		"axios": "^0.19.0",
-		"git-rev-sync": "^1.12.0"
+		"git-rev-sync": "^1.12.0",
+		"open": "^6.3.0"
 	}
 }

@@ -1,9 +1,10 @@
 
 import * as vscode from 'vscode';
-import axios from 'axios';
+import axios ,{AxiosResponse}from 'axios';
+import * as open from "open";
 import { TreeDataProvider, TreeItem, TreeView, window } from 'vscode';
 import * as git from 'git-rev-sync';
-async function getProjectId(search: string = ''): Promise<string> {
+async function getProjectId(search: string,remoteUrl:string): Promise<string> {
   let id = '';
   let res = await axios({
     method: 'get',
@@ -11,35 +12,23 @@ async function getProjectId(search: string = ''): Promise<string> {
     headers: {
       "Private-Token": "C82n-mpa39SCszUS3pvj"
     }
-  });
-  console.log(res)
-  return id
+  }) as AxiosResponse<any[]>
+  return res.data.find(item=>item.ssh_url_to_repo.includes(remoteUrl)&&item.http_url_to_repo.includes(remoteUrl)).id;
 }
+
 export class Gitlab {
   symbolViewer: TreeView<vscode.TreeItem>;
-  remoteUrl: string
-  branch: string
-  projectId: string = '';
-  get namespace(): string {
-    let index = this.remoteUrl.indexOf('git.greedyint.com')
-    return this.remoteUrl.slice(index + 1)
-  }
-  get gitlabApiSearch(): string {
-    return this.namespace.split('/')[1];
-  }
+ 
   constructor(context: vscode.ExtensionContext) {
-    vscode.commands.registerCommand("jwx.gitlab.refresh", () => {
-
+    vscode.commands.registerCommand("jwx.gitlab.openMR", (projectId:string,sourceBranch:string) => {
+      let search = `merge_request[source_project_id]=${projectId}&merge_request[source_branch]=${sourceBranch}&merge_request[target_project_id]=${projectId}&merge_request[target_branch]=20190219_develop_init_cheneh`
+      open(`http://git.greedyint.com/${projectId}/merge_requests/new?utf8=✓&${encodeURIComponent(search)}`)
     });
     let treeDataProvider = new Xb1TreeDataProvider(context);
     this.symbolViewer = window.createTreeView("gitlab", {
       treeDataProvider
     });
-    this.branch = git.branch();
-    this.remoteUrl = git.remoteUrl();
-    getProjectId(this.gitlabApiSearch).then(res => {
-      this.projectId = res
-    })
+    
   }
 
 }
@@ -47,6 +36,14 @@ export class Gitlab {
 
 export class Xb1TreeDataProvider
   implements TreeDataProvider<SymbolNode> {
+  remoteUrl: string
+  branch: string
+  projectId: string = '';
+  get gitlabApiSearch(): string {
+    let index = this.remoteUrl.indexOf('git.greedyint.com')
+    let namespace = this.remoteUrl.slice(index + 1)
+    return namespace.split('/')[1].replace('.git','');
+  }
   private _onDidChangeTreeData: vscode.EventEmitter<SymbolNode | null> = new vscode.EventEmitter<SymbolNode | null>();
   readonly onDidChangeTreeData: vscode.Event<SymbolNode | null> = this
     ._onDidChangeTreeData.event;
@@ -56,6 +53,14 @@ export class Xb1TreeDataProvider
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
     this.tree = new SymbolNode();
+    this.branch = git.branch();
+    // this.branch = git.branch();
+    // this.remoteUrl = git.remoteUrl();
+    this.remoteUrl = "git.greedyint.com";
+    getProjectId(this.gitlabApiSearch,this.remoteUrl).then(res => {
+      this.projectId = res
+      this.updateSymbols()
+    })
   }
 
   //   private getSymbols(uri:vscode.Uri): Thenable<vscode.SymbolInformation[]> {
@@ -68,27 +73,37 @@ export class Xb1TreeDataProvider
 
   private async updateSymbols(editor?: vscode.TextEditor): Promise<void> {
     // let configFile=path.join(vscode.workspace.rootPath,"/xb1Extension.js");
-    const root = new SymbolNode();
-    const tree = new SymbolNode();
-    tree.parent = root;
-    tree.info.label = "获取git信息中";
-    root.children.push(tree);
-    this.tree = root;
-  }
-  private mixNode(parentNode: SymbolNode, mix: SymbolNode, onode: ONode, symbolNodeArr: vscode.SymbolInformation[]): void {
-    if (parentNode) {
-      mix.parent = parentNode;
-      parentNode.children.push(mix);
+    if(!this.projectId){
+      const root = new SymbolNode();
+      const tree = new SymbolNode();
+      tree.parent = root;
+      tree.info.label = "获取git信息中";
+      root.children.push(tree);
+      this.tree = root;
+    }else{
+      this.tree.children[0].label = `点击提交MR请求`
+      this.tree.children[0].command = {
+        command: "jwx.gitlab.openMR",
+        title: "提交MR请求",
+        arguments: [this.projectId,this.branch,this.remoteUrl]
+      };
     }
-    mix.info = onode;
-    mix.symbol = symbolNodeArr.find(i => i.name === onode.pk);
-    if (onode.children.length > 0) {
-      onode.children.forEach((item) => {
-        let newNode = new SymbolNode();
-        this.mixNode(mix, newNode, item, symbolNodeArr);
-      });
-    }
+    
   }
+  // private mixNode(parentNode: SymbolNode, mix: SymbolNode, onode: ONode, symbolNodeArr: vscode.SymbolInformation[]): void {
+  //   if (parentNode) {
+  //     mix.parent = parentNode;
+  //     parentNode.children.push(mix);
+  //   }
+  //   mix.info = onode;
+  //   mix.symbol = symbolNodeArr.find(i => i.name === onode.pk);
+  //   if (onode.children.length > 0) {
+  //     onode.children.forEach((item) => {
+  //       let newNode = new SymbolNode();
+  //       this.mixNode(mix, newNode, item, symbolNodeArr);
+  //     });
+  //   }
+  // }
   async getChildren(node?: SymbolNode): Promise<SymbolNode[]> {
     if (node) {
       return node.children;
@@ -137,8 +152,8 @@ class NodeInfo {
   label: string = '';
   detail: string = '';
 }
-class ONode extends NodeInfo {
-  pk: string = '';
-  children: ONode[] = [];
-  parent?: ONode;
-}
+// class ONode extends NodeInfo {
+//   pk: string = '';
+//   children: ONode[] = [];
+//   parent?: ONode;
+// }
